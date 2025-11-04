@@ -16,5 +16,5 @@ Este módulo se centra en los fundamentos del sistema operativo Linux, con espec
 - **Bash**: Shell para ejecutar comandos.
 - **CLI**: Interfaz de línea de comandos.
 - **Vagrant**: Crear y gestionar entornos de desarrollo virtualizados.
-- **Virtualbos**: Herramienta de virtualización.
+- **Virtualbox**: Herramienta de virtualización.
 
