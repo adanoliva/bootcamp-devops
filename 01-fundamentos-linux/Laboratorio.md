@@ -22,7 +22,11 @@ Y `file2.txt` debe permanecer vacío.
 
 Solución
 ```bash
-
+mkdir -p foo/dummy
+mkdir -p foo/empty
+cd foo/dummy
+echo "Me encanta la bash" > file1.txt
+touch file2.txt
 ```
 
 ### 2. Mediante comandos de bash, vuelca el contenido de file1.txt a file2.txt y mueve file2.txt a la carpeta empty
