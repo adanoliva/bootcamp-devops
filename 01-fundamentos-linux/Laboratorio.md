@@ -47,6 +47,11 @@ Donde `file1.txt` y `file2.txt` deben contener el siguiente texto:
 Me encanta la bash!!
 ```
 
+Solución
+```bash
+cat foo/dummy/file1.txt > foo/dummy/file2.txt
+mv foo/dummy/file2.txt foo/empty
+```
 ### 3. Crear un script de bash que agrupe los pasos de los ejercicios anteriores y además permita establecer el texto de file1.txt alimentándose como parámetro al invocarlo
 
 Si se le pasa un texto vacío al invocar el script, el texto de los ficheros, el texto por defecto será:
