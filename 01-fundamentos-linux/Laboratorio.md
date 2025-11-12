@@ -25,7 +25,7 @@ Solución
 mkdir -p foo/dummy
 mkdir -p foo/empty
 cd foo/dummy
-echo "Me encanta la bash" > file1.txt
+echo "Me encanta la bash!!" > file1.txt
 touch file2.txt
 ```
 
