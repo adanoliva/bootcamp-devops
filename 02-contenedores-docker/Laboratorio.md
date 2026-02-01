@@ -1,5 +1,16 @@
 # 🐳 Laboratorio Contenedores - Retos del final del módulo 🕵🏻‍♀️🫆
 
+## 🎯 Los 4 Retos
+El objetivo es tener esta aplicación funcionando completamente en contenedores, la cual es un calendario de las clases de Lemoncode 🍋🗓️
+![Aplicación de los 4 retos: Calendario de clases de Lemoncode](image.png)
+La misma aplicación está disponible en dos stacks tecnológicos diferentes para el backend: .NET y Node.js. El frontend es idéntico en ambos casos. ¡Tú eliges cuál usar!
+
+Está compuesta de tres componentes principales:
+
+🌐 Frontend: Una interfaz con Node.js
+⚙️ Backend: Elige tu aventura - .NET (dotnet-stack) o Node.js (node-stack) que se conecta con MongoDB **(Elección -> Node.js)**
+🗄️ Base de datos: MongoDB para almacenar toda la información
+
 ## 🔥 Reto 1: MongoDB en Contenedor
 Objetivo: Ejecutar MongoDB dentro de un contenedor y conectar el backend (ejecutándose localmente) para que pueda recuperar, crear, modificar y eliminar clases de la base de datos.
 
