@@ -7,9 +7,9 @@ La misma aplicación está disponible en dos stacks tecnológicos diferentes par
 
 Está compuesta de tres componentes principales:
 
-🌐 Frontend: Una interfaz con Node.js
-⚙️ Backend: Elige tu aventura - .NET (dotnet-stack) o Node.js (node-stack) que se conecta con MongoDB **(Elección -> Node.js)**
-🗄️ Base de datos: MongoDB para almacenar toda la información
+- 🌐 Frontend: Una interfaz con Node.js
+- ⚙️ Backend: Elige tu aventura - .NET (dotnet-stack) o Node.js (node-stack) que se conecta con MongoDB **(Elección -> Node.js)**
+- 🗄️ Base de datos: MongoDB para almacenar toda la información
 
 ## 🔥 Reto 1: MongoDB en Contenedor
 Objetivo: Ejecutar MongoDB dentro de un contenedor y conectar el backend (ejecutándose localmente) para que pueda recuperar, crear, modificar y eliminar clases de la base de datos.
