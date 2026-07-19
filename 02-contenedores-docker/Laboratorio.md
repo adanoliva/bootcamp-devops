@@ -82,13 +82,9 @@ Documenta los comandos útiles (up, down, logs, etc.)
 
 Solución
 
-Creo la red:
 ```bash
 docker network create lemoncode-network
-```
 
-Levanto Mongo con volumen para que no se pierdan los datos si borro el contenedor:
-```bash
 docker run -d \
   --name mongo \
   --network lemoncode-network \
@@ -97,7 +93,9 @@ docker run -d \
   mongo:6
 ```
 
-En `node-stack/backend/.env` apunto el backend a ese Mongo:
+El volumen es para que no se pierdan los datos si borro el contenedor.
+
+`node-stack/backend/.env`:
 ```
 DATABASE_URL=mongodb://localhost:27017
 DATABASE_NAME=ClassesDb
@@ -105,7 +103,7 @@ PORT=5000
 HOST=0.0.0.0
 ```
 
-Uso `localhost` porque en este punto el backend todavía corre en mi máquina, no en un contenedor.
+`localhost` porque el backend todavía corre en mi máquina, no en un contenedor.
 
 ```bash
 cd node-stack/backend
@@ -113,19 +111,7 @@ npm install
 npm start
 ```
 
-Log de arranque, conecta bien:
-```
-Conexión a MongoDB exitosa
-Colección Classes cargada
-Servidor ejecutándose en: http://localhost:5000
-```
-
-Probé el CRUD contra `http://localhost:5000/api/classes` (tuve que corregir el `client.http`, tenía el host en `5001` y el backend corre en `5000`):
-- GET inicial → `[]`
-- POST → `201`, crea la clase con `_id`
-- GET por id → devuelve la clase
-- PUT → actualiza
-- DELETE → `204`
+Arranca bien, conecta a Mongo. Probé el CRUD con `client.http` (tuve que corregirlo, tenía el host en `5001` y el backend corre en `5000`): GET, POST, GET por id, PUT y DELETE, todo ok.
 
 ![Reto 1 - client.http mostrando el CRUD contra MongoDB en contenedor](reto-01.png)
 
@@ -148,14 +134,11 @@ EXPOSE 5000
 CMD ["node", "app.js"]
 ```
 
-Uso `node:18-alpine` para que la imagen pese poco, y copio primero el `package.json` para que `npm ci` se cachee y no se reinstale en cada build si solo cambio código.
+Copio primero el `package.json` para que `npm ci` no se repita en cada build si solo cambia código.
 
 ```bash
 docker build -t topics-api ./node-stack/backend
-```
 
-Al ejecutarlo lo meto en la misma red que Mongo. Ahora `DATABASE_URL` ya no es `localhost`, es `mongo` (el nombre del contenedor), porque el backend ya no corre en mi máquina:
-```bash
 docker run -d \
   --name topics-api \
   --network lemoncode-network \
@@ -166,14 +149,7 @@ docker run -d \
   topics-api
 ```
 
-`docker logs topics-api` confirma la conexión:
-```
-Conexión a MongoDB exitosa
-Colección Classes cargada
-Servidor ejecutándose en: http://localhost:5000
-```
-
-`GET http://localhost:5000/api/classes` responde `[]` (normal, borré el dato de prueba en el DELETE del Reto 1), pero confirma que la API en contenedor funciona igual que en local.
+Ahora `DATABASE_URL` apunta a `mongo` (nombre del contenedor) en vez de `localhost`, porque el backend ya corre dentro de la red. `docker logs topics-api` confirma la conexión, y `GET http://localhost:5000/api/classes` responde `[]` (borré el dato de prueba del Reto 1 con el DELETE).
 
 ![Reto 2 - client.http contra el backend en contenedor](reto-02a.png)
 ![Reto 2 - logs de docker logs topics-api](reto-02b.png)
@@ -186,7 +162,7 @@ Servidor ejecutándose en: http://localhost:5000
 
 Solución
 
-`node-stack/frontend/Dockerfile`:
+`node-stack/frontend/Dockerfile`, mismo patrón que el backend:
 ```dockerfile
 FROM node:18-alpine
 WORKDIR /app
@@ -197,16 +173,14 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-Mismo patrón que el backend. `node-stack/frontend/.env`:
+`node-stack/frontend/.env`:
 ```
 API_URL=http://topics-api:5000/api/classes
 ```
 
 ```bash
 docker build -t lemoncode-frontend ./node-stack/frontend
-```
 
-```bash
 docker run -d \
   --name lemoncode-frontend \
   --network lemoncode-network \
@@ -215,15 +189,7 @@ docker run -d \
   lemoncode-frontend
 ```
 
-Como frontend y backend están en la misma red, `API_URL` apunta al nombre del contenedor (`topics-api`), no a `localhost`.
-
-`docker logs lemoncode-frontend`:
-```
-Servidor iniciado correctamente
-API: http://topics-api:5000/api/classes
-```
-
-`http://localhost:3000` responde `HTTP 200`, ya conectado al backend.
+`API_URL` apunta a `topics-api` (nombre del contenedor) porque frontend y backend comparten red. `http://localhost:3000` responde 200, calendario cargado.
 
 ![Reto 3 - calendario cargado en el navegador con el frontend en contenedor](reto-03.png)
 
@@ -236,24 +202,20 @@ API: http://topics-api:5000/api/classes
 
 Solución
 
-No hace falta `.env`: todas las variables (`DATABASE_URL`, `DATABASE_NAME`, `PORT`, `API_URL`) están declaradas directamente en `environment:` de cada servicio dentro del propio `compose.yml`, que ya es el archivo versionado con la configuración.
+No hace falta `.env`, las variables ya están en `environment:` de cada servicio.
 
 `node-stack/compose.yml`:
 ```yaml
 services:
-  # Base de datos. Usa la imagen oficial, no build propio.
   mongo:
     image: mongo:6
     networks:
       - lemoncode-network
     volumes:
-      # Volumen con nombre: los datos sobreviven a un `down` sin -v.
       - mongo-data:/data/db
     ports:
-      # Publicado al host solo para poder inspeccionar con mongodb-vscode.
       - "27017:27017"
 
-  # Backend Node.js. Se construye desde el Dockerfile del Reto 2.
   topics-api:
     build: ./backend
     networks:
@@ -261,17 +223,12 @@ services:
     ports:
       - "5000:5000"
     environment:
-      # mongo:27017 y no localhost: ambos contenedores comparten la red
-      # lemoncode-network, así que se resuelven por nombre de servicio.
-      - DATABASE_URL=mongodb://mongo:27017
+      - DATABASE_URL=mongodb://mongo:27017 # nombre del servicio, no localhost
       - DATABASE_NAME=ClassesDb
       - PORT=5000
     depends_on:
-      # Solo ordena el arranque (espera a que el contenedor arranque,
-      # no a que Mongo acepte conexiones). El backend reintenta/loguea si falla.
       - mongo
 
-  # Frontend Node.js. Se construye desde el Dockerfile del Reto 3.
   frontend:
     build: ./frontend
     networks:
@@ -279,27 +236,23 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Igual que con mongo: se llama al backend por su nombre de servicio.
       - API_URL=http://topics-api:5000/api/classes
     depends_on:
       - topics-api
 
-# Red compartida por los tres servicios, sustituye al `docker network create` manual.
 networks:
   lemoncode-network:
 
-# Volumen con nombre que declara mongo, para que persista entre `docker compose down`.
 volumes:
   mongo-data:
 ```
 
-Antes de esto quité los contenedores que había levantado a mano en los retos 1-3 (`docker stop`/`rm`), para que no chocaran con los que crea Compose.
+Antes quité los contenedores de los retos 1-3 a mano para que no chocaran con los de Compose.
 
 ```bash
 docker compose up -d --build
+docker compose ps
 ```
-
-`docker compose ps`:
 ```
 NAME                      IMAGE                   SERVICE      STATUS
 node-stack-frontend-1     node-stack-frontend     frontend     Up
@@ -307,9 +260,9 @@ node-stack-mongo-1        mongo:6                 mongo        Up
 node-stack-topics-api-1   node-stack-topics-api   topics-api   Up
 ```
 
-Para comprobar que la persistencia funciona de verdad, no solo que el volumen esté declarado: creé una clase de prueba, hice `docker compose down` y `docker compose up -d` otra vez, y la clase seguía ahí en `GET http://localhost:5000/api/classes`. El volumen `mongo-data` no se toca con un `down` normal (solo con `down -v`).
+Probé la persistencia: creé una clase, hice `down` y `up -d` de nuevo, y seguía ahí (el volumen no se toca salvo con `down -v`).
 
-`http://localhost:3000` responde `HTTP 200`.
+`http://localhost:3000` responde 200.
 
 ![Reto 4 - docker compose ps con los 3 servicios Up](reto-04a.png)
 ![Reto 4 - aplicación completa en el navegador](reto-04b.png)
