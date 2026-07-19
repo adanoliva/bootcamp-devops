@@ -18,7 +18,7 @@ Este repositorio recopila los ejercicios prácticos realizados durante el Bootca
 | Módulo | Descripción | Tecnologías | Estado    |
 |--------|-------------|-------------|-----------|
 | 01 - Fundamentos de Linux para contenedores | Gestión de ficheros, procesos, permisos y red en Linux orientado a entornos de contenedores. Introducción al shell scripting y automatización de tareas | Linux, Bash | Finalizado |
-| 02 - Contenedores Docker | Trabajo con contenedores Docker: imágenes, redes, volúmenes, comunicación entre servicios y ciclo de vida de contenedores | Docker, Docker Desktop | En progreso |
+| 02 - Contenedores Docker | Trabajo con contenedores Docker: imágenes, redes, volúmenes, comunicación entre servicios y ciclo de vida de contenedores | Docker, Docker Desktop | Entregado |
 
 
 
