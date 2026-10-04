@@ -1,0 +1,31 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: todo-db-sc
+provisioner: k8s.io/minikube-hostpath
+reclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: todo-db-pv
+spec:
+  storageClassName: todo-db-sc
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /data/todo-db
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: todo-db-pvc
+spec:
+  storageClassName: todo-db-sc
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

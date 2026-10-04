@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-front
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-front
+  template:
+    metadata:
+      labels:
+        app: todo-front
+    spec:
+      containers:
+        - name: todo-front
+          image: todo-front:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-front
+spec:
+  type: ClusterIP
+  selector:
+    app: todo-front
+  ports:
+    - port: 80
+      targetPort: 80
