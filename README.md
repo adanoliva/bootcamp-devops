@@ -20,6 +20,7 @@ Este repositorio recopila los ejercicios prácticos realizados durante el Bootca
 | 01 - Fundamentos de Linux para contenedores | Gestión de ficheros, procesos, permisos y red en Linux orientado a entornos de contenedores. Introducción al shell scripting y automatización de tareas | Linux, Bash | Finalizado |
 | 02 - Contenedores Docker | Trabajo con contenedores Docker: imágenes, redes, volúmenes, comunicación entre servicios y ciclo de vida de contenedores | Docker, Docker Desktop | Finalizado |
 | 03 - Orquestación | De monolito en memoria a monolito con PostgreSQL y finalmente UI y API separadas detrás de un Ingress | Kubernetes, Minikube, Docker, PostgreSQL, Nginx | Entregado |
+| 04 - CI/CD | Pipelines con Jenkins (Gradle, Docker in Docker) y workflows de CI/CD con GitHub Actions | Jenkins, Gradle, Docker, GitHub Actions | En curso |
 
 
 
