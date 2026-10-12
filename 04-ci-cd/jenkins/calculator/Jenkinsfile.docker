@@ -1,0 +1,28 @@
+pipeline {
+    agent {
+        docker {
+            image 'gradle:6.6.1-jre14-openj9'
+        }
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: 'https://github.com/adanoliva/bootcamp-devops.git', branch: 'main'
+            }
+        }
+        stage('Compile') {
+            steps {
+                dir('04-ci-cd/jenkins/calculator') {
+                    sh './gradlew compileJava'
+                }
+            }
+        }
+        stage('Unit Tests') {
+            steps {
+                dir('04-ci-cd/jenkins/calculator') {
+                    sh './gradlew test'
+                }
+            }
+        }
+    }
+}
