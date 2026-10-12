@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    environment {
+        JAVA_HOME = '/opt/java/jdk11'
+    }
     stages {
         stage('Checkout') {
             steps {
