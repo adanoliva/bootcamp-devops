@@ -1,0 +1,20 @@
+name: E2E hangman
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '04-ci-cd/github-actions/hangman-*/**'
+      - '04-ci-cd/github-actions/docker-compose.e2e.yml'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 04-ci-cd/github-actions
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e
+      - if: always()
+        run: docker compose -f docker-compose.e2e.yml down
