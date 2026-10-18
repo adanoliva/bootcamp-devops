@@ -478,28 +478,151 @@ npm run open
 
 #### 📋 Requisitos
 
-- [ ] Levantar `hangman-api` y `hangman-front` en el workflow.
-- [ ] Ejecutar los tests e2e.
+- [x] Levantar `hangman-api` y `hangman-front` en el workflow.
+- [x] Ejecutar los tests e2e.
 
 #### 🛠️ Resolución
 
-<!-- Pegar aquí los manifiestos/comandos usados y capturas de verificación -->
+Solución
+
+Elijo Docker Compose en vez de Cypress action. Con Compose el mismo fichero levanta todo igual en mi máquina que en el runner, así que lo puedo reproducir en local antes de subirlo, y cada pieza (api, front, tests) se puede modificar o actualizar por separado. Con Cypress action todo quedaría metido en los pasos del workflow.
+
+Copio `hangman-api` y `hangman-e2e` en `04-ci-cd/github-actions`, junto al front. Antes de montar el compose reviso lo que trae `hangman-e2e/e2e` y hay tres cosas que no van a funcionar tal cual:
+
+- `cypress.config.ts` tiene `baseUrl: 'http://localhost:8080'`. Dentro del contenedor de Cypress, `localhost` es el propio contenedor; hay que usar el nombre del servicio del front.
+- El único script es `"open": "cypress open"`, que abre la interfaz gráfica y espera a que alguien elija los tests. En un runner sin pantalla hay que usar `cypress run`, que los ejecuta todos y termina con código de error si alguno falla.
+- El `e2e.dockerfile` viene de otro proyecto: copia `./test-e2e-infrastructure/e2e/`, que aquí no existe, y hace `npm ci -w @pumpbit-quiz-maker/e2e`, un workspace que tampoco existe.
+
+Rehago el `hangman-e2e/e2e/e2e.dockerfile` para esta carpeta, con `cypress run` como comando:
+
+```dockerfile
+FROM cypress/base:16
+
+WORKDIR /app
+
+COPY package.json .
+
+COPY package-lock.json .
+
+RUN npm ci
+
+COPY . .
+
+ENV CI=1
+
+RUN npx cypress verify
+
+CMD ["npx", "cypress", "run"]
+```
+
+`04-ci-cd/github-actions/docker-compose.e2e.yml`:
+```yaml
+services:
+  api:
+    build: ./hangman-api
+
+  front:
+    build: ./hangman-front
+    environment:
+      API_URL: http://api:3000
+    depends_on:
+      - api
+
+  e2e:
+    build:
+      context: ./hangman-e2e/e2e
+      dockerfile: e2e.dockerfile
+    environment:
+      CYPRESS_BASE_URL: http://front:8080
+    depends_on:
+      - front
+```
+
+Con `CYPRESS_BASE_URL` sobrescribo el `baseUrl` sin tocar el config, que sigue valiendo para local. El `API_URL` también va con el nombre del servicio porque quien llama a la API es el navegador que corre dentro del contenedor de Cypress. No publico puertos porque todo pasa dentro de la red de Compose.
+
+Lo pruebo en local. Con `--exit-code-from e2e` Compose para todo cuando acaba el servicio `e2e` y devuelve su código de salida:
+
+```bash
+docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e
+```
+
+La primera vez construye las tres imágenes pero se queda parado con los contenedores en `Created`, sin arrancarlos ni dar error. Lo cancelo, arranco primero `api` y `front` con `up -d` y vuelvo a lanzar el comando completo, y ya funciona. No he podido ver la causa; fue justo después de arrancar Docker Desktop y no se ha vuelto a repetir.
+
+Los tests pasan, pero en los logs del front aparece esto:
+
+```
+/entry-point.sh: line 2: : not found
+sed: /usr/share/nginx/html/app*.js: No such file or directory
+```
+
+El fichero `app.*.js` sí existe en la imagen. El problema son los finales de línea: en el repo `entry-point.sh` está con LF, pero en mi Windows git lo saca con CRLF (`core.autocrlf=true`), y el `\r` se pega al nombre del fichero, así que el `sed` nunca sustituye el `API_URL`:
+
+```bash
+git ls-files --eol 04-ci-cd/github-actions/hangman-front/entry-point.sh
+```
+```
+i/lf    w/crlf  attr/                 04-ci-cd/github-actions/hangman-front/entry-point.sh
+```
+
+Los tests no lo detectan porque solo comprueban que sale "Start Hangman", que no depende de la API. En el runner (Linux) funcionaría, pero entonces el compose ya no se comporta igual en local que en CI, que era justo el motivo de elegirlo. Añado un `.gitattributes` en la raíz del repo para que los `.sh` salgan siempre con LF y vuelvo a sacar el fichero:
+
+```
+*.sh text eol=lf
+```
+```bash
+rm 04-ci-cd/github-actions/hangman-front/entry-point.sh
+git checkout -- 04-ci-cd/github-actions/hangman-front/entry-point.sh
+```
+
+Con `--build` otra vez, el front arranca sin errores, el `app.*.js` ya lleva `http://api:3000` y los dos specs pasan con código de salida 0.
+
+El workflow solo tiene que hacer checkout y lanzar el mismo comando. Lo disparo en las PR que tocan cualquiera de las tres apps o el compose, para poder probarlo sin hacer merge antes, y también a mano con `workflow_dispatch` una vez esté en `main`. El `down` con `if: always()` limpia aunque fallen los tests.
+
+`.github/workflows/e2e-hangman.yml`:
+```yaml
+name: E2E hangman
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '04-ci-cd/github-actions/hangman-*/**'
+      - '04-ci-cd/github-actions/docker-compose.e2e.yml'
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 04-ci-cd/github-actions
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f docker-compose.e2e.yml up --build --exit-code-from e2e
+      - if: always()
+        run: docker compose -f docker-compose.e2e.yml down
+```
+
+Subo la rama `githubActions/Ej3`, abro la PR y se lanza el workflow:
+
+![GHA Ejercicio 3 - workflow E2E lanzado desde la PR](github-actions/gha3-b.png)
+
+Termina en verde:
+
+![GHA Ejercicio 3 - run en verde](github-actions/gha3-d.png)
+
+Y en el log del step se ven los resultados de Cypress:
+
+![GHA Ejercicio 3 - resultados de Cypress](github-actions/gha3-e.png)
+
+El CI del front no se lanza en esta PR: el `entry-point.sh` ya estaba con LF en el repo, así que no hay cambios dentro de `hangman-front`.
 
 ---
 
-### Ejercicio 4. Custom JavaScript Action - OPCIONAL
+### ~~Ejercicio 4. Custom JavaScript Action - OPCIONAL~~
 
-Crear una custom JavaScript Action que se ejecute cada vez que una issue tenga la etiqueta `motivate` y pinte por consola un mensaje motivacional. Referencia: [crear una JavaScript action](https://docs.github.com/es/actions/creating-actions/creating-a-javascript-action).
+No lo entrego, de los dos opcionales he hecho el Ejercicio 3.
 
-```bash
-curl https://favqs.com/api/qotd
-```
+~~Crear una custom JavaScript Action que se ejecute cada vez que una issue tenga la etiqueta `motivate` y pinte por consola un mensaje motivacional.~~
 
-#### 📋 Requisitos
-
-- [ ] Disparar la acción al etiquetar una issue con `motivate`.
-- [ ] Obtener una frase de la API y pintarla por consola.
-
-#### 🛠️ Resolución
-
-<!-- Pegar aquí los manifiestos/comandos usados y capturas de verificación -->
+- ~~Disparar la acción al etiquetar una issue con `motivate`.~~
+- ~~Obtener una frase de la API y pintarla por consola.~~
