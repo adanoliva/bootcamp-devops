@@ -1,0 +1,19 @@
+services:
+  api:
+    build: ./hangman-api
+
+  front:
+    build: ./hangman-front
+    environment:
+      API_URL: http://api:3000
+    depends_on:
+      - api
+
+  e2e:
+    build:
+      context: ./hangman-e2e/e2e
+      dockerfile: e2e.dockerfile
+    environment:
+      CYPRESS_BASE_URL: http://front:8080
+    depends_on:
+      - front
