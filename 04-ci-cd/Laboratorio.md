@@ -330,12 +330,71 @@ Copiar el directorio `.start-code/hangman-front` en el directorio raíz del mism
 
 #### 📋 Requisitos
 
-- [ ] Build del proyecto de front.
-- [ ] Ejecutar los unit tests.
+- [x] Build del proyecto de front.
+- [x] Ejecutar los unit tests.
 
 #### 🛠️ Resolución
 
-<!-- Pegar aquí los manifiestos/comandos usados y capturas de verificación -->
+Solución
+
+Copio `hangman-front` en `04-ci-cd/github-actions/hangman-front` en vez de en la raíz, para que todo el módulo quede dentro de su carpeta como el resto del repo. El workflow sí tiene que ir en la raíz, en `.github/workflows`, porque GitHub solo los busca ahí.
+
+`.github/workflows/ci-hangman-front.yml`:
+```yaml
+name: CI hangman-front
+
+on:
+  pull_request:
+    paths:
+      - '04-ci-cd/github-actions/hangman-front/**'
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 04-ci-cd/github-actions/hangman-front
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: 04-ci-cd/github-actions/hangman-front/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+```
+
+Las dos condiciones a la vez salen de poner `paths` dentro del evento `pull_request`: solo se lanza si hay PR y además toca algo de `hangman-front`. El `working-directory` hace lo mismo que el `dir` de Jenkins para todos los `run`. Dejo build y test en un solo job para no instalar dos veces las dependencias.
+
+Subo los cambios a la rama `githubActions/Ej1` y abro una PR contra `main`. El workflow se lanza y falla:
+
+![GHA Ejercicio 1 - check fallido en la PR](github-actions/gha1-a.png)
+
+El `npm ci` y el `npm run build` pasan, lo que falla es `npm test`. Lo reproduzco en local:
+
+```
+FAIL src/components/start-game.spec.tsx
+  × should display a list of topics
+    Expected length: 1
+    Received length: 2
+    Received array:  [<li>topic A</li>, <li>topic B</li>]
+```
+
+El test está mal: el stub de la API devuelve dos temas y luego espera uno. Lo corrijo en `src/components/start-game.spec.tsx`:
+
+```ts
+expect(items).toHaveLength(2);
+```
+
+Hago push a la misma rama y, como la PR sigue abierta, el workflow se vuelve a lanzar solo (evento `synchronize`). Esta vez pasa:
+
+![GHA Ejercicio 1 - checks en verde en la PR](github-actions/gha1-d.png)
+
+En Actions se ven los dos runs, el primero al abrir la PR y el segundo tras el arreglo:
+
+![GHA Ejercicio 1 - runs en Actions](github-actions/gha1-e.png)
 
 ---
 
@@ -345,12 +404,61 @@ Crear un workflow que se dispare manualmente.
 
 #### 📋 Requisitos
 
-- [ ] Crear una nueva imagen de Docker.
-- [ ] Publicar dicha imagen en el [container registry de GitHub](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+- [x] Crear una nueva imagen de Docker.
+- [x] Publicar dicha imagen en el [container registry de GitHub](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
 
 #### 🛠️ Resolución
 
-<!-- Pegar aquí los manifiestos/comandos usados y capturas de verificación -->
+Solución
+
+El workflow se lanza solo a mano con `workflow_dispatch`, construye la imagen con el `Dockerfile` que ya trae `hangman-front` y la sube a GHCR. Para el login no hace falta crear ningún token, uso el `GITHUB_TOKEN` del propio run, pero hay que darle permiso para escribir paquetes.
+
+`.github/workflows/cd-hangman-front.yml`:
+```yaml
+name: CD hangman-front
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: 04-ci-cd/github-actions/hangman-front
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/hangman-front:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/hangman-front:latest
+```
+
+Al poner `permissions`, todo lo que no aparece se queda sin permiso, por eso añado también `contents: read` para el checkout. La imagen lleva dos tags: el SHA del commit, para saber exactamente qué código hay dentro, y `latest`. Uso `github.repository_owner` en vez de poner mi usuario a mano.
+
+Subo el workflow a la rama `githubActions/Ej2`, pero en Actions no aparece, solo sigue el de CI:
+
+![GHA Ejercicio 2 - el workflow CD no aparece](github-actions/gha2-a.png)
+
+GitHub solo muestra el botón "Run workflow" si el fichero está en la rama por defecto. Hago merge de la PR del ejercicio 1 y de una nueva PR de `githubActions/Ej2` a `main`, y ya aparece:
+
+![GHA Ejercicio 2 - el workflow CD ya aparece](github-actions/gha2-b.png)
+
+Lo lanzo con "Run workflow" sobre `main` y termina en verde:
+
+![GHA Ejercicio 2 - run en verde](github-actions/gha2-d.png)
+
+La imagen queda publicada en GHCR con los dos tags. Sale como pública porque hereda la visibilidad del repo:
+
+![GHA Ejercicio 2 - paquete hangman-front en GHCR](github-actions/gha2-f.png)
 
 ---
 
